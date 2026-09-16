@@ -1,22 +1,33 @@
 //! # Trioxus
 //!
-//! **Declarative Three.js for Dioxus — React Three Fiber for Rust across Web and Desktop.**
+//! **Dioxus-facing declarative graphics facade over `tricore` across Web and Desktop.**
 //!
-//! Trioxus brings the power and ecosystem of [Three.js](https://threejs.org/) to the
-//! [Dioxus](https://dioxuslabs.com/) reactive component tree.
+//! `trioxus` provides Dioxus component bindings, reactive lifecycle management,
+//! and host embedding adapters for the underlying host-agnostic [`tricore`] graphics engine.
 //!
 //! ## Core Architecture
 //!
-//! - **Unified Driver Model**: Seamlessly drives 3D scenes on both `dioxus-web` (browser WASM)
-//!   and `dioxus-desktop` (Wry/WebView via lightweight IPC eval channels).
-//! - **In-WebView 60/120 FPS Runtime**: High-frequency rendering, orbit controls, physics,
-//!   and animations run locally in the browser/webview event loop to eliminate FFI/IPC jitter.
-//! - **Fine-Grained Reactive Diffing**: Dioxus Signals communicate discrete scene graph updates
-//!   (mesh creation, material property changes, camera positions) without full canvas re-renders.
+//! - **Dioxus Component Facade**: Exposes `<TrioxusCanvas>` for easy declarative use in RSX.
+//! - **Platform Embedding Adapters**: Integrates with Web `<canvas>` on browser targets and
+//!   Blitz native custom widgets (`<object>`) on desktop targets.
+//! - **Host-to-Core Coordinate Bridge**: Normalizes DOM client coordinates with DPR scaling
+//!   and maps them into host-neutral `tricore` viewport spaces.
+//! - **Re-exported Engine Core**: Transparently provides access to `tricore` types and math.
 
-#![warn(missing_docs)]
+pub mod bridge;
+pub mod components;
+pub mod platform;
+pub mod runtime;
 
-/// Early scaffold version of Trioxus.
+// Re-export tricore as the foundational graphics engine
+pub use tricore;
+
+// High-frequency re-exports
+pub use bridge::*;
+pub use components::*;
+pub use runtime::*;
+
+/// Version of the Trioxus crate.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg(test)]
@@ -26,5 +37,11 @@ mod tests {
     #[test]
     fn test_version() {
         assert!(!VERSION.is_empty());
+    }
+
+    #[test]
+    fn test_tricore_reexport_accessible() {
+        let cube = tricore::Mesh3D::unit_cube();
+        assert_eq!(cube.vertices.len(), 24);
     }
 }

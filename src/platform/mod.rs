@@ -1,0 +1,11 @@
+//! Host platform adapter bindings (isolated adapters for Web and Blitz Native).
+
+#[cfg(target_arch = "wasm32")]
+pub mod web {
+    //! Web browser canvas adapter.
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod native {
+    //! Desktop Blitz CustomWidget adapter.
+}

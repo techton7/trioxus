@@ -5,13 +5,14 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/GoCoder7/trioxus"
 authors = ["GoCoder <gocoder7@gmail.com>"]
-description = "Declarative Three.js for Dioxus — React Three Fiber for Rust across Web and Desktop."
+description = "Dioxus-facing declarative graphics facade over tricore across Web and Desktop."
 readme = "README.md"
-keywords = ["dioxus", "threejs", "3d", "webgl", "graphics"]
+keywords = ["dioxus", "graphics", "wgpu", "viewport", "canvas"]
 categories = ["gui", "rendering::graphics-api", "visualization"]
 
 [dependencies]
 dioxus = { version = "0.7.0", default-features = false, features = ["hooks", "signals", "macro", "html"] }
+tricore = { path = "../tricore", version = "0.1.0" }
 
 [dev-dependencies]
 dioxus = { version = "0.7.0", default-features = false, features = ["minimal"] }
