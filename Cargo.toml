@@ -16,3 +16,6 @@ tricore = { path = "../tricore", version = "0.1.0" }
 
 [dev-dependencies]
 dioxus = { version = "0.7.0", default-features = false, features = ["minimal"] }
+
+[profile.dev.package."*"]
+opt-level = 3
