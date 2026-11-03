@@ -25,6 +25,7 @@ pub use tricore;
 // High-frequency re-exports
 pub use bridge::*;
 pub use components::*;
+pub use platform::*;
 pub use runtime::*;
 
 /// Version of the Trioxus crate.
