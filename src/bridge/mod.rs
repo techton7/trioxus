@@ -60,6 +60,156 @@ impl CanvasPointerEvent {
     }
 }
 
+/// Key transition state received from host platform keyboard input events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CanvasKeyState {
+    Down,
+    Up,
+}
+
+/// Zero-dependency modifier key bitmask carried by [`CanvasKeyEvent`].
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct CanvasModifiers(pub u8);
+
+impl CanvasModifiers {
+    /// No active modifier keys.
+    pub const NONE: Self = Self(0);
+    /// Shift modifier key (`1 << 0`).
+    pub const SHIFT: Self = Self(1 << 0);
+    /// Control modifier key (`1 << 1`).
+    pub const CONTROL: Self = Self(1 << 1);
+    /// Alt / Option modifier key (`1 << 2`).
+    pub const ALT: Self = Self(1 << 2);
+    /// Meta / Command / Super modifier key (`1 << 3`).
+    pub const META: Self = Self(1 << 3);
+
+    /// Returns an empty modifier bitmask (`CanvasModifiers::NONE`).
+    #[inline]
+    pub const fn empty() -> Self {
+        Self::NONE
+    }
+
+    /// Returns `true` if no modifier flags are set.
+    #[inline]
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    /// Returns `true` if all flags in `other` are set in `self`.
+    #[inline]
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    /// Returns `true` if at least one flag in `other` is set in `self`.
+    #[inline]
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+
+    /// Inserts all flags from `other` into `self`.
+    #[inline]
+    pub fn insert(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+
+    /// Removes all flags in `other` from `self`.
+    #[inline]
+    pub fn remove(&mut self, other: Self) {
+        self.0 &= !other.0;
+    }
+}
+
+impl core::ops::BitOr for CanvasModifiers {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl core::ops::BitOrAssign for CanvasModifiers {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+impl core::ops::BitAnd for CanvasModifiers {
+    type Output = Self;
+
+    #[inline]
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl core::ops::BitAndAssign for CanvasModifiers {
+    #[inline]
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+
+/// Normalized host-neutral keyboard event dispatched into canvas layout or `TriuiSubtreeHost`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CanvasKeyEvent {
+    pub state: CanvasKeyState,
+    pub key: String,
+    pub code: String,
+    pub modifiers: CanvasModifiers,
+    pub repeat: bool,
+    pub is_composing: bool,
+}
+
+impl CanvasKeyEvent {
+    /// Creates a `CanvasKeyState::Down` keyboard event with no modifiers, `repeat = false`, and `is_composing = false`.
+    pub fn key_down(key: impl Into<String>, code: impl Into<String>) -> Self {
+        Self {
+            state: CanvasKeyState::Down,
+            key: key.into(),
+            code: code.into(),
+            modifiers: CanvasModifiers::NONE,
+            repeat: false,
+            is_composing: false,
+        }
+    }
+
+    /// Creates a `CanvasKeyState::Up` keyboard event with no modifiers, `repeat = false`, and `is_composing = false`.
+    pub fn key_up(key: impl Into<String>, code: impl Into<String>) -> Self {
+        Self {
+            state: CanvasKeyState::Up,
+            key: key.into(),
+            code: code.into(),
+            modifiers: CanvasModifiers::NONE,
+            repeat: false,
+            is_composing: false,
+        }
+    }
+
+    /// Returns this event with the given modifier bitmask applied.
+    #[inline]
+    pub fn with_modifiers(mut self, modifiers: CanvasModifiers) -> Self {
+        self.modifiers = modifiers;
+        self
+    }
+
+    /// Returns this event with the auto-repeat flag set.
+    #[inline]
+    pub fn with_repeat(mut self, repeat: bool) -> Self {
+        self.repeat = repeat;
+        self
+    }
+
+    /// Returns this event with the IME composition state flag set.
+    #[inline]
+    pub fn with_composing(mut self, is_composing: bool) -> Self {
+        self.is_composing = is_composing;
+        self
+    }
+}
+
 /// Bridge mapping client/screen coordinates to host-neutral tricore viewport space.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CoordinateBridge {
@@ -142,5 +292,79 @@ impl CoordinateBridge {
             local_pt.x + self.canvas_rect.x,
             local_pt.y + self.canvas_rect.y,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_canvas_modifiers_bitmask_operations() {
+        let mut mods = CanvasModifiers::empty();
+        assert_eq!(mods, CanvasModifiers::NONE);
+        assert_eq!(mods, CanvasModifiers::default());
+        assert!(mods.is_empty());
+        assert!(mods.contains(CanvasModifiers::NONE));
+        assert!(!mods.intersects(CanvasModifiers::NONE));
+        assert!(!mods.contains(CanvasModifiers::SHIFT));
+        assert!(!mods.intersects(CanvasModifiers::SHIFT));
+
+        assert_eq!(CanvasModifiers::NONE.0, 0);
+        assert_eq!(CanvasModifiers::SHIFT.0, 1 << 0);
+        assert_eq!(CanvasModifiers::CONTROL.0, 1 << 1);
+        assert_eq!(CanvasModifiers::ALT.0, 1 << 2);
+        assert_eq!(CanvasModifiers::META.0, 1 << 3);
+
+        mods.insert(CanvasModifiers::SHIFT);
+        assert!(!mods.is_empty());
+        assert!(mods.contains(CanvasModifiers::SHIFT));
+        assert!(!mods.contains(CanvasModifiers::CONTROL));
+        assert!(mods.intersects(CanvasModifiers::SHIFT | CanvasModifiers::ALT));
+        assert!(!mods.intersects(CanvasModifiers::CONTROL | CanvasModifiers::META));
+
+        mods |= CanvasModifiers::CONTROL;
+        assert!(mods.contains(CanvasModifiers::SHIFT | CanvasModifiers::CONTROL));
+        assert!(!mods.contains(CanvasModifiers::SHIFT | CanvasModifiers::ALT));
+        assert_eq!(
+            mods & CanvasModifiers::CONTROL,
+            CanvasModifiers::CONTROL
+        );
+
+        mods.remove(CanvasModifiers::SHIFT);
+        assert!(!mods.contains(CanvasModifiers::SHIFT));
+        assert!(mods.contains(CanvasModifiers::CONTROL));
+
+        mods.remove(CanvasModifiers::CONTROL);
+        assert!(mods.is_empty());
+    }
+
+    #[test]
+    fn test_canvas_key_event_constructors_and_builders() {
+        let down = CanvasKeyEvent::key_down("ArrowRight", "ArrowRight");
+        assert_eq!(down.state, CanvasKeyState::Down);
+        assert_eq!(down.key, "ArrowRight");
+        assert_eq!(down.code, "ArrowRight");
+        assert!(down.modifiers.is_empty());
+        assert!(!down.repeat);
+        assert!(!down.is_composing);
+
+        let shift_tab = CanvasKeyEvent::key_down("Tab", "Tab")
+            .with_modifiers(CanvasModifiers::SHIFT)
+            .with_repeat(true)
+            .with_composing(false);
+        assert_eq!(shift_tab.state, CanvasKeyState::Down);
+        assert!(shift_tab.modifiers.contains(CanvasModifiers::SHIFT));
+        assert!(!shift_tab
+            .modifiers
+            .intersects(CanvasModifiers::CONTROL | CanvasModifiers::ALT | CanvasModifiers::META));
+        assert!(shift_tab.repeat);
+        assert!(!shift_tab.is_composing);
+
+        let up = CanvasKeyEvent::key_up("Enter", "Enter").with_composing(true);
+        assert_eq!(up.state, CanvasKeyState::Up);
+        assert_eq!(up.key, "Enter");
+        assert_eq!(up.code, "Enter");
+        assert!(up.is_composing);
     }
 }

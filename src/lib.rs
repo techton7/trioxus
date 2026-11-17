@@ -45,4 +45,13 @@ mod tests {
         let cube = tricore::Mesh3D::unit_cube();
         assert_eq!(cube.vertices.len(), 24);
     }
+
+    #[test]
+    fn test_canvas_key_bridge_reexports_accessible() {
+        let ev: crate::CanvasKeyEvent =
+            crate::bridge::CanvasKeyEvent::key_down("Tab", "Tab")
+                .with_modifiers(crate::CanvasModifiers::SHIFT);
+        assert_eq!(ev.state, crate::CanvasKeyState::Down);
+        assert!(ev.modifiers.contains(crate::bridge::CanvasModifiers::SHIFT));
+    }
 }
