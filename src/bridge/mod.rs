@@ -5,12 +5,34 @@ use tricore::math::{viewport_to_world_2d, world_to_viewport_2d, ViewportRect};
 
 use crate::platform::CanvasHostHandle;
 
+/// Input device modality for a [`CanvasPointerEvent`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum CanvasPointerType {
+    #[default]
+    Mouse,
+    Touch,
+    Pen,
+}
+
+impl CanvasPointerType {
+    /// Returns the W3C `PointerEvent.pointerType` string representation (`"mouse"`, `"touch"`, `"pen"`).
+    #[inline]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Mouse => "mouse",
+            Self::Touch => "touch",
+            Self::Pen => "pen",
+        }
+    }
+}
+
 /// Pointer interaction kind received from host platform input events.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CanvasPointerKind {
     Down,
     Up,
     Move,
+    Cancel,
     Wheel { delta_x: f64, delta_y: f64 },
 }
 
@@ -31,11 +53,13 @@ pub struct CanvasPointerEvent {
     pub local_x: f64,
     pub local_y: f64,
     pub button: CanvasPointerButton,
+    pub pointer_type: CanvasPointerType,
+    pub pointer_id: i32,
 }
 
 impl CanvasPointerEvent {
-    /// Creates a new canvas pointer event.
-    pub fn new(
+    /// Creates a new canvas pointer event defaulting to [`CanvasPointerType::Mouse`] and `pointer_id = 1`.
+    pub const fn new(
         kind: CanvasPointerKind,
         local_x: f64,
         local_y: f64,
@@ -46,7 +70,23 @@ impl CanvasPointerEvent {
             local_x,
             local_y,
             button,
+            pointer_type: CanvasPointerType::Mouse,
+            pointer_id: 1,
         }
+    }
+
+    /// Returns this event with the given pointer device modality.
+    #[inline]
+    pub const fn with_pointer_type(mut self, pointer_type: CanvasPointerType) -> Self {
+        self.pointer_type = pointer_type;
+        self
+    }
+
+    /// Returns this event with the given W3C `PointerEvent.pointerId`.
+    #[inline]
+    pub const fn with_pointer_id(mut self, pointer_id: i32) -> Self {
+        self.pointer_id = pointer_id;
+        self
     }
 
     /// Converts local coordinates to physical coordinates using the specified DPR scale factor.
@@ -268,12 +308,7 @@ impl CoordinateBridge {
         button: CanvasPointerButton,
     ) -> CanvasPointerEvent {
         let (local_x, local_y) = self.client_to_local_logical(client_x, client_y);
-        CanvasPointerEvent {
-            kind,
-            local_x,
-            local_y,
-            button,
-        }
+        CanvasPointerEvent::new(kind, local_x, local_y, button)
     }
 
     /// Converts host client/mouse coordinates `(client_x, client_y)` to 2D world coordinates.
@@ -366,5 +401,59 @@ mod tests {
         assert_eq!(up.key, "Enter");
         assert_eq!(up.code, "Enter");
         assert!(up.is_composing);
+    }
+
+    #[test]
+    fn test_canvas_pointer_type_cancel_and_pointer_id_builders() {
+        assert_eq!(CanvasPointerType::default(), CanvasPointerType::Mouse);
+        assert_eq!(CanvasPointerType::Mouse.as_str(), "mouse");
+        assert_eq!(CanvasPointerType::Touch.as_str(), "touch");
+        assert_eq!(CanvasPointerType::Pen.as_str(), "pen");
+
+        let default_down = CanvasPointerEvent::new(
+            CanvasPointerKind::Down,
+            24.0,
+            48.0,
+            CanvasPointerButton::Primary,
+        );
+        assert_eq!(default_down.kind, CanvasPointerKind::Down);
+        assert_eq!(default_down.local_x, 24.0);
+        assert_eq!(default_down.local_y, 48.0);
+        assert_eq!(default_down.button, CanvasPointerButton::Primary);
+        assert_eq!(default_down.pointer_type, CanvasPointerType::Mouse);
+        assert_eq!(default_down.pointer_id, 1);
+
+        let touch_move = CanvasPointerEvent::new(
+            CanvasPointerKind::Move,
+            120.5,
+            240.25,
+            CanvasPointerButton::None,
+        )
+        .with_pointer_type(CanvasPointerType::Touch)
+        .with_pointer_id(7);
+        assert_eq!(touch_move.kind, CanvasPointerKind::Move);
+        assert_eq!(touch_move.pointer_type, CanvasPointerType::Touch);
+        assert_eq!(touch_move.pointer_id, 7);
+
+        let pen_cancel = CanvasPointerEvent::new(
+            CanvasPointerKind::Cancel,
+            0.0,
+            0.0,
+            CanvasPointerButton::None,
+        )
+        .with_pointer_type(CanvasPointerType::Pen)
+        .with_pointer_id(42);
+        assert_eq!(pen_cancel.kind, CanvasPointerKind::Cancel);
+        assert_eq!(pen_cancel.pointer_type, CanvasPointerType::Pen);
+        assert_eq!(pen_cancel.pointer_id, 42);
+
+        let bridge = CoordinateBridge::new(ViewportRect::new(10.0, 20.0, 800.0, 600.0), 2.0);
+        let mapped_cancel =
+            bridge.map_pointer_event(CanvasPointerKind::Cancel, 30.0, 50.0, CanvasPointerButton::None);
+        assert_eq!(mapped_cancel.kind, CanvasPointerKind::Cancel);
+        assert_eq!(mapped_cancel.local_x, 20.0);
+        assert_eq!(mapped_cancel.local_y, 30.0);
+        assert_eq!(mapped_cancel.pointer_type, CanvasPointerType::Mouse);
+        assert_eq!(mapped_cancel.pointer_id, 1);
     }
 }
