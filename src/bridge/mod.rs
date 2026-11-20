@@ -1,7 +1,7 @@
 //! Coordinate and host mapping bridge connecting Dioxus DOM events to tricore viewport math.
 
-use tricore::glam::{Mat4, Vec2};
-use tricore::math::{viewport_to_world_2d, world_to_viewport_2d, ViewportRect};
+use crate::tricore::glam::{Mat4, Vec2};
+use crate::tricore::math::{ViewportRect, viewport_to_world_2d, world_to_viewport_2d};
 
 use crate::platform::CanvasHostHandle;
 

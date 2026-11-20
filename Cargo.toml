@@ -13,7 +13,12 @@ autotests = false
 
 [dependencies]
 dioxus = { version = "0.7.0", default-features = false, features = ["hooks", "signals", "macro", "html"] }
-tricore = { path = "../tricore", version = "0.1.0" }
+glam = "0.29"
+tricore = { path = "../tricore", version = "0.1.0", optional = true }
+
+[features]
+default = ["tricore"]
+tricore = ["dep:tricore"]
 
 [dev-dependencies]
 dioxus = { version = "0.7.0", default-features = false, features = ["minimal"] }

@@ -3,7 +3,7 @@
 use std::fmt;
 use std::ops::Deref;
 use std::sync::Arc;
-use tricore::math::ViewportRect;
+use crate::tricore::math::ViewportRect;
 
 /// Decoupled platform handle abstracting the underlying window, canvas, or custom widget.
 ///

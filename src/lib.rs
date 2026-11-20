@@ -19,7 +19,15 @@ pub mod components;
 pub mod platform;
 pub mod runtime;
 
+#[cfg(not(feature = "tricore"))]
+mod tricore_compat;
+#[cfg(not(feature = "tricore"))]
+pub mod tricore {
+    pub use crate::tricore_compat::{glam, math};
+}
+
 // Re-export tricore as the foundational graphics engine
+#[cfg(feature = "tricore")]
 pub use tricore;
 
 // High-frequency re-exports
@@ -40,10 +48,21 @@ mod tests {
         assert!(!VERSION.is_empty());
     }
 
+    #[cfg(feature = "tricore")]
     #[test]
     fn test_tricore_reexport_accessible() {
         let cube = tricore::Mesh3D::unit_cube();
         assert_eq!(cube.vertices.len(), 24);
+    }
+
+    #[cfg(not(feature = "tricore"))]
+    #[test]
+    fn test_tricore_math_compat_accessible() {
+        let viewport = tricore::math::ViewportRect::new(0.0, 0.0, 800.0, 600.0);
+        assert_eq!(
+            viewport.ndc_to_pixel(tricore::glam::Vec2::ZERO),
+            tricore::glam::Vec2::new(400.0, 300.0)
+        );
     }
 
     #[test]
